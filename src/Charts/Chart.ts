@@ -1,4 +1,4 @@
-type Relation = {
+export type Relation = {
     [key: string] : {}
     relSpec?: {
       [key: string] : string
