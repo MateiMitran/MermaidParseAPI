@@ -1,8 +1,21 @@
 // @ts-ignore
-import Chart, { Relation } from "./Chart.ts";
+import { Relation } from "./Chart.ts";
 
-function ClassDiagram(classes: {}, relations: Relation[]) {
-    return new Chart(classes, relations);
+export default class ClassDiagram {
+    classes: {};
+    relations: Relation[];
+
+    constructor(classes: {}, relations: Relation[]) {
+        this.classes = classes;
+        this.relations = relations;
+         console.log(`Parsed class diagram with ${relations.length} relations.`)   
+    }
+
+    getClasses(): {} {
+        return this.classes;
+    }
+
+    getEdges(): Relation[] {
+        return this.relations;
+    }
 }
-
-export default ClassDiagram;

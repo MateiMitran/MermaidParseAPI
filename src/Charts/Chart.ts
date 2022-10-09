@@ -8,15 +8,15 @@ export type Relation = {
   
   export default class Chart {
       
-    nodes: {};
+    nodes: [];
     relations: Relation[];
   
-    constructor(nodes: {}, relations: Relation[]) {
+    constructor(nodes: [], relations: Relation[]) {
         this.nodes = nodes;
         this.relations = relations;
     }
   
-    getNodes(): {} {
+    getNodes(): [] {
         return this.nodes;
     }
   

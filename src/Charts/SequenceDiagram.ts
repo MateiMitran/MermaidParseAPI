@@ -1,8 +1,22 @@
 // @ts-ignore
-import Chart, { Relation } from "./Chart.ts";
+import { Relation } from "./Chart.ts";
 
-function SequenceDiagram(actors: {}, messages: Relation[]) {
-    return new Chart(actors, messages);
+export default class SequenceDiagram {
+    actors: {};
+    messages: Relation[];
+
+    constructor(actors: {}, messages: Relation[]) {
+        this.actors = actors;
+        this.messages = messages;
+        console.log(`Parsed sequence diagram with ${messages.length} messages.`)
+    }
+   
+    getActors(): {} {
+        return this.actors;
+    }
+
+    getMessages(): Relation[] {
+        return this.messages;
+    }
+   
 }
-
-export default SequenceDiagram;

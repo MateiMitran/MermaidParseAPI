@@ -1,8 +1,22 @@
 // @ts-ignore
-import Chart, { Relation } from "./Chart.ts";
+import { Relation } from "./Chart.ts";
 
-function FlowChart(vertices: {}, edges: Relation[]) {
-    return new Chart(vertices, edges);
+export default class FlowChart {
+    vertices: {};
+    edges: Relation[];
+
+    constructor(vertices: {}, edges: Relation[]) {
+        this.vertices = vertices;
+        this.edges = edges;
+        console.log(`Parsed flowchart with ${edges.length} edges.`)
+    }
+   
+    getVertices(): {} {
+        return this.vertices;
+    }
+
+    getEdges(): Relation[] {
+        return this.edges;
+    }
+   
 }
-
-export default FlowChart;
