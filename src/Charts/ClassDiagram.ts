@@ -8,7 +8,6 @@ export default class ClassDiagram {
     constructor(classes: {}, relations: Relation[]) {
         this.classes = classes;
         this.relations = relations;
-         console.log(`Parsed class diagram with ${relations.length} relations.`)   
     }
 
     getClasses(): {} {
