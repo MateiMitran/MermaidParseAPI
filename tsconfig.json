@@ -4,13 +4,13 @@
 
         "sourceMap" : true,
 
-        "target": "es5",
+        "target": "es2017",
 
         "experimentalDecorators": true,
 
         "emitDecoratorMetadata": true,
 
-        "lib": ["es6", "es2016", "esnext.asynciterable"],
+        "lib": ["ES2020","es6", "es2016", "esnext.asynciterable"],
 
         "outDir": "dist",
 
@@ -18,7 +18,7 @@
 
         "esModuleInterop": true,
 
-        "module":"es6"
+        "module":"esnext"
 
   },
   "ts-node": {
