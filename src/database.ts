@@ -1,18 +1,11 @@
-import knex, { Knex } from "../node_modules/knex/knex.js";
-
-const conn = knex({
-    client: 'sqlite3', 
-    connection: {
-      filename: ":memory:"
-    }
-});
-
+import {Knex} from "../node_modules/knex/knex.js";
+//fix
 
 //create database structure diagram
 export async function createClassesTable(knex: Knex): Promise<void> {
   return knex.schema.createTable('classes', table => {
     table.increments('id').primary();
-    table.string('name').notNullable();
+    table.string('name');
     //methods? fields? 
   }).then((res) => {console.log("Classes table created")});
 }
@@ -21,15 +14,15 @@ export async function createClassesTable(knex: Knex): Promise<void> {
 export async function createRelationsTable(knex: Knex): Promise<void> {
  return knex.schema.createTable('relations', table => {
     table.increments('id').primary();
-    table.string('first_class').notNullable();
-    table.string('relation').notNullable();
-    table.string('second_class').notNullable();
+    table.string('first_class');
+    table.string('relation');
+    table.string('second_class');
  }).then((res) => {console.log("Relations table created")});
 }
 
 
 //get all relations
-export async function getAllRelations(): Promise<string[]> {
+export async function getAllRelations(conn): Promise<string[]> {
 
   let relationsArray: string[] = [];
 
@@ -43,7 +36,7 @@ export async function getAllRelations(): Promise<string[]> {
 }
 
 //get all inheritance relations
-export async function getAllInheritanceRelations(): Promise<string[]> {
+export async function getAllInheritanceRelations(conn): Promise<string[]> {
 
   let relationsArray: string[] = [];
 
@@ -56,9 +49,7 @@ export async function getAllInheritanceRelations(): Promise<string[]> {
   return relationsArray;
 }
 
-//?
-
-export async function getAllWithRelation(relationName: string): Promise<string[]> {
+export async function getAllWithRelation(relationName: string, conn): Promise<string[]> {
 
   let relationsArray: string[] = [];
   
@@ -72,5 +63,3 @@ export async function getAllWithRelation(relationName: string): Promise<string[]
 }
 
 // getAllSubclasses(), getAllBaseClasses(), ...
-
-export default conn;
