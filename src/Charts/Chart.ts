@@ -1,17 +1,9 @@
-export type Relation = {
-    [key: string] : {}
-    relSpec?: {
-      [key: string] : string
-    }
-  }
-  
-  
-  export default class Chart {
+export default class Chart {
       
     nodes: [];
-    relations: Relation[];
+    relations: any[];
   
-    constructor(nodes: [], relations: Relation[]) {
+    constructor(nodes: [], relations: any[]) {
         this.nodes = nodes;
         this.relations = relations;
     }
@@ -20,8 +12,8 @@ export type Relation = {
         return this.nodes;
     }
   
-    getRelations(): Relation[] {
+    getRelations(): any[] {
         return this.relations;
     }
   
-  }
+}

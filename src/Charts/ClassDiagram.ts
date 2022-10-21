@@ -1,82 +1,61 @@
-// @ts-ignore
-import { Relation } from "./Chart.ts";
+type Relation = {
+  id: number,
+  first_class: string,
+  relation: string,
+  second_class: string
+}
 
 export default class ClassDiagram {
   classes: {};
   relations: Relation[];
-  direction: string;
+  debug: any[];
 
-  constructor(classes: {}, relations: Relation[], direction) {
+  constructor(classes: {}, debug: any[]) {
     this.classes = classes;
-    this.relations = relations;
-    this.direction = direction;
+    this.debug = debug;
+    this.relations = this.getDesignPatternArray();
   }
 
   getClasses(): {} {
     return this.classes;
   }
 
+  getDebug(): any[] {
+    return this.debug;
+  }
+
   getRelations(): Relation[] {
     return this.relations;
   }
 
-  getDirection(): string {
-    return this.direction
-  }
-
   // getDesignPatterns structure
-  getDesignPattern(): string[] {
-    let structuredRelations: string[] = [];
+ 
+  getDesignPatternArray(): Relation[] {
+    let structuredRelations: Relation[] = [];
     let i: number = 1;
-    this.relations.forEach((rel) => {
-      structuredRelations.push(
-        `ID: ${i} first_class: ${rel.id1} relation: ${this.getRelationType(
+    this.debug.forEach((rel) => {
+      structuredRelations.push({
+        id: i,
+        first_class:
+          (rel.relation.type2 === "none" && rel.relation.type1 !== "none")
+             ? rel.id2
+             : rel.id1,
+        relation: this.getRelationType(
           rel.relation.type1,
           rel.relation.type2,
           rel.relation.lineType
-        )} second_class: ${rel.id2}`
-      );
+        ),
+        second_class:
+          (rel.relation.type2 === "none" && rel.relation.type1 !== "none")
+          ? rel.id1
+          : rel.id2,
+      });
       i++;
     });
     return structuredRelations;
   }
 
-  getDesignPatternArray(): any[] {
-    let structuredRelations: any[] = [];
-    let i: number = 1;
-    this.relations.forEach((rel) => {
-      if (rel.relation.type2 === "none" && rel.relation.type1 !=="none") {
-        console.log(rel.id2);
-        structuredRelations.push({
-            id: i,
-            first_class: rel.relation.id2,
-            relation: this.getRelationType(
-              rel.relation.type1,
-              rel.relation.type2,
-              rel.relation.lineType
-            ),
-            second_class: rel.relation.id1,
-          });
-      }
-        if (rel.relation.type1 === "none" && rel.relation.type2 !=="none") {
-        console.log("b");
-        structuredRelations.push({
-            id: i,
-            first_class: rel.id1,
-            relation: this.getRelationType(
-              rel.relation.type1,
-              rel.relation.type2,
-              rel.relation.lineType
-            ),
-            second_class: rel.id2,
-          });
-      }
-      i++;
-    });
-    return structuredRelations;
-  }
-
-  getRelationType(type1, type2, lineType) {
+  getRelationType(type1: number, type2: number, lineType: number): string {
     if (type1.toString() === "none" && type2.toString() === "none") {
       switch (lineType.toString()) {
         case "0":
@@ -84,47 +63,34 @@ export default class ClassDiagram {
         case "1":
           return "dashed link";
       }
-    }
-    else if (type1.toString() === "none" && type2.toString !== "none") {
-      switch (type2.toString()) {
-        case "0":
-          return "aggregation";
-        case "1":
-          if (lineType.toString() === "0") {
-            return "inheritance";
-          } else {
-            return "realization";
-          }
-        case "2":
-          return "composition";
-        case "3":
-          if (lineType.toString() === "0") {
-            return "association";
-          } else {
-            return "dependency";
-          }
-      }
+    } else if (type1.toString() === "none" && type2.toString() !== "none") {
+      return this.conversion(type2.toString(),lineType.toString());
     } else if (type1.toString() !== "none" && type2.toString() === "none") {
-      switch (type1.toString()) {
-        case "0":
-          return "aggregation";
-        case "1":
-          if (lineType.toString() === "0") {
-            return "inheritance";
-          } else {
-            return "realization";
-          }
-        case "2":
-          return "composition";
-        case "3":
-          if (lineType.toString() === "0") {
-            return "association";
-          } else {
-            return "dependency";
-          }
-      }
+      return this.conversion(type1.toString(),lineType.toString());
     } else {
       return "";
+    }
+  }
+
+
+  private conversion(relationCode: string, lineType: string): string {
+    switch (relationCode) {
+      case "0":
+        return "aggregation";
+      case "1":
+        if (lineType === "0") {
+          return "inheritance";
+        } else {
+          return "realization";
+        }
+      case "2":
+        return "composition";
+      case "3":
+        if (lineType === "0") {
+          return "association";
+        } else {
+          return "dependency";
+        }
     }
   }
 }

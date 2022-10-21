@@ -48,7 +48,6 @@ app.post("/parse", async (req: Request, res: Response) => {
     // @ts-ignore parse input
     const temp = mermaid.default.mermaidAPI.parse(input).parser.yy;
     const graphType = temp.graphType;
-    console.log(temp);
     switch (graphType) {
       case "flowchart-v2":
         res
@@ -71,25 +70,22 @@ app.post("/parse", async (req: Request, res: Response) => {
       case "classDiagram":
         let classDiagram: ClassDiagram = new ClassDiagram(
           temp.getClasses(),
-          temp.getRelations(),
-          temp.getDirection()
+          temp.getRelations()
         );
         await createClassesTable(conn);
         await createRelationsTable(conn);
         await conn("relations")
-          .insert(classDiagram.getDesignPatternArray())
+          .insert(classDiagram.getRelations())
           .then(() => console.log("data inserted"))
           .catch((e) => {
             console.log(e);
             throw e;
           });
-        conn.destroy();
         res
           .status(200)
           .json({
             chart: classDiagram,
             chartType: graphType,
-            structure: classDiagram.getDesignPattern(),
           });
         res.end();
         break;

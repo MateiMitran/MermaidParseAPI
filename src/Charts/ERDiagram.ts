@@ -1,11 +1,8 @@
-// @ts-ignore
-import { Relation } from "./Chart.ts";
-
 export default class ERDiagram {
     entities: {};
-    relationships: Relation[];
+    relationships: any[];
 
-    constructor(entities: {}, relationships: Relation[]) {
+    constructor(entities: {}, relationships: any[]) {
         this.entities = entities;
         this.relationships = relationships;
          console.log(`Parsed entity relationship diagram with ${relationships.length} relations.`)   
@@ -15,7 +12,7 @@ export default class ERDiagram {
         return this.entities;
     }
 
-    getRelationships(): Relation[] {
+    getRelationships(): any[] {
         return this.relationships;
     }
 }
