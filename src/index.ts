@@ -1,12 +1,13 @@
 import express, { Request, Response } from "express";
 import * as mermaid from "mermaid";
 const app = express();
-const port = 8080; // default port to listen
+const port = 8080;
 // @ts-ignore
-import ClassDiagram from "./Charts/ClassDiagram.ts"; import ERDiagram from "./Charts/ERDiagram.ts"; import FlowChart from "./Charts/Flowchart.ts"; import SequenceDiagram from "./Charts/SequenceDiagram.ts";
-import knex from "../node_modules/knex/knex.js";
+import knex from "../node_modules/knex/knex.js";import ClassDiagram from "./Charts/ClassDiagram.ts";import ERDiagram from "./Charts/ERDiagram.ts";import FlowChart from "./Charts/Flowchart.ts";import SequenceDiagram from "./Charts/SequenceDiagram.ts";
 //@ts-ignore
 import { createClassesTable, createRelationsTable } from "./database.ts";
+//@ts-ignore
+import {checkSingleton} from "./patternChecker.ts";
 
 app.use(express.json());
 
@@ -24,9 +25,18 @@ app.listen(port, () => {
   console.log(`server started at http://localhost:${port}`);
 });
 
+function sendResponse(res: Response, chart: any, chartType: string): void {
+  res.status(200).json({
+    chart: chart,
+    chartType: chartType,
+  });
+  res.end();
+  console.log("[Ending parse]");
+}
+
 app.post("/parse", async (req: Request, res: Response) => {
   try {
-    console.log("Starting Parse...");
+    console.log("[Starting Parse]");
     const input = req.body.input;
     if (!input) {
       res.status(400).send({
@@ -50,53 +60,29 @@ app.post("/parse", async (req: Request, res: Response) => {
     const graphType = temp.graphType;
     switch (graphType) {
       case "flowchart-v2":
-        res
-          .status(200)
-          .json({
-            chart: new FlowChart(temp.getVertices(), temp.getEdges()),
-            chartType: graphType,
-          });
-        res.end();
+        sendResponse(res,new FlowChart(temp.getVertices(), temp.getEdges()), graphType);
         break;
       case "sequence":
-        res
-          .status(200)
-          .json({
-            chart: new SequenceDiagram(temp.getActors(), temp.getMessages()),
-            chartType: graphType,
-          });
-        res.end();
+        sendResponse(res, new SequenceDiagram(temp.getActors(), temp.getMessages()), graphType);
         break;
       case "classDiagram":
         let classDiagram: ClassDiagram = new ClassDiagram(
           temp.getClasses(),
           temp.getRelations()
         );
-        await createClassesTable(conn);
-        await createRelationsTable(conn);
-        await conn("relations")
-          .insert(classDiagram.getRelations())
-          .then(() => console.log("data inserted"))
-          .catch((e) => {
-            console.log(e);
-            throw e;
-          });
-        res
-          .status(200)
-          .json({
-            chart: classDiagram,
-            chartType: graphType,
-          });
-        res.end();
+     //   await createClassesTable(conn);
+  //      await createRelationsTable(conn);
+    //    await conn("relations")
+    //      .insert(classDiagram.getRelations())
+     //     .then(() => console.log("data inserted"))
+     //     .catch((e) => {
+      //      console.log(e);
+      //      throw e;
+      //    });
+        sendResponse(res,checkSingleton(classDiagram,'Singleton'),graphType);
         break;
       case "er":
-        res
-          .status(200)
-          .json({
-            chart: new ERDiagram(temp.getEntities(), temp.getRelationships()),
-            chartType: graphType,
-          });
-        res.end();
+        sendResponse(res, new ERDiagram(temp.getEntities(), temp.getRelationships()), graphType);
         break;
       default:
         res.status(418).send({

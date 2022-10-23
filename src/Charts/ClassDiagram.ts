@@ -1,22 +1,34 @@
-type Relation = {
+export type Relation = {
   id: number,
   first_class: string,
   relation: string,
   second_class: string
 }
 
+export type _Class = {
+  id: string,
+  domId: string,
+  annotations: string[],
+  cssClasses: any[],
+  members: string[],
+  methods: string[],
+  type: string
+}
+
 export default class ClassDiagram {
-  classes: {};
+  classes: _Class[];
   relations: Relation[];
   debug: any[];
 
   constructor(classes: {}, debug: any[]) {
-    this.classes = classes;
+
+    this.classes = Object.values(classes);
     this.debug = debug;
     this.relations = this.getDesignPatternArray();
+    console.log(`Parsed class diagram with ${this.relations.length} relations`);
   }
 
-  getClasses(): {} {
+  getClasses(): _Class[] {
     return this.classes;
   }
 
@@ -93,4 +105,6 @@ export default class ClassDiagram {
         }
     }
   }
-}
+
+
+} 
