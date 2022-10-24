@@ -30,7 +30,6 @@ export function checkSingleton(classDiagram: ClassDiagram, id: string): boolean 
 
     if (ok==0) {return false;}
 
-
     //Step2: Singleton Class has Private Constructor && Step3: Singleton class has a Public method that returns instance of class
     singletonClass.methods.forEach(method=> {
         if (method.includes(`-${singletonClass.id}()`)) {

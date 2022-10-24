@@ -70,16 +70,19 @@ app.post("/parse", async (req: Request, res: Response) => {
           temp.getClasses(),
           temp.getRelations()
         );
-     //   await createClassesTable(conn);
-  //      await createRelationsTable(conn);
-    //    await conn("relations")
-    //      .insert(classDiagram.getRelations())
-     //     .then(() => console.log("data inserted"))
-     //     .catch((e) => {
-      //      console.log(e);
-      //      throw e;
-      //    });
-        sendResponse(res,checkSingleton(classDiagram,'Singleton'),graphType);
+        if (classDiagram.getRelations().length > 0) {
+        await createClassesTable(conn);
+        await createRelationsTable(conn);
+        await conn("relations")
+          .insert(classDiagram.getRelations())
+          .then(() => console.log("data inserted"))
+          .catch((e) => {
+            console.log(e);
+            throw e;
+          });
+        }
+        console.log(checkSingleton(classDiagram,'Singleton'));
+        sendResponse(res,classDiagram,graphType);
         break;
       case "er":
         sendResponse(res, new ERDiagram(temp.getEntities(), temp.getRelationships()), graphType);
