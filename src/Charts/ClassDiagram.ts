@@ -7,13 +7,29 @@ export type Relation = {
 
 export type _Class = {
   id: string,
-  domId: string,
-  annotations: string[],
-  cssClasses: any[],
-  members: string[],
-  methods: string[],
   type: string
+  members: Member[],
+  methods: Method[],
 }
+
+export type Member = {
+  id: number,
+  returnType: string,
+  name: string,
+  accessibility: string,
+  classifier: string 
+}
+
+export type Method = {
+  id: number,
+  returnType: string,
+  name: string,
+  keyword: string,
+  accessibility: string,
+  classifier: string 
+}
+
+
 
 export default class ClassDiagram {
   classes: _Class[];
@@ -23,6 +39,10 @@ export default class ClassDiagram {
   constructor(classes: {}, debug: any[]) {
 
     this.classes = Object.values(classes);
+    this.classes.forEach(_class=> {
+      //@ts-ignore
+      delete(_class.annotations);delete(_class.cssClasses);delete(_class.domId);
+    })
     this.debug = debug;
     this.relations = this.getDesignPatternArray();
     console.log(`Parsed class diagram with ${this.relations.length} relations`);
@@ -40,7 +60,24 @@ export default class ClassDiagram {
     return this.relations;
   }
 
-  // getDesignPatterns structure
+  getMembers(_class: _Class): Member[] {
+    this.classes.forEach(__class => {
+      if (JSON.stringify(__class) === JSON.stringify(_class)) {
+        return __class.members;
+      }
+    });
+    return undefined;
+  }
+
+  getMethods(_class: _Class): Method[] {
+    this.classes.forEach(__class => {
+      if (JSON.stringify(__class) === JSON.stringify(_class)) {
+        return __class.methods;
+      }
+    });
+    return undefined;
+  }
+
  
   getDesignPatternArray(): Relation[] {
     let structuredRelations: Relation[] = [];

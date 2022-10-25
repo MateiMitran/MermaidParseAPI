@@ -5,7 +5,7 @@ const port = 8080;
 // @ts-ignore
 import knex from "../node_modules/knex/knex.js";import ClassDiagram from "./Charts/ClassDiagram.ts";import ERDiagram from "./Charts/ERDiagram.ts";import FlowChart from "./Charts/Flowchart.ts";import SequenceDiagram from "./Charts/SequenceDiagram.ts";
 //@ts-ignore
-import { createClassesTable, createRelationsTable } from "./database.ts";
+import { createClassesTable, createRelationsTable, createMethodsTable, createMembersTable} from "./database.ts";
 //@ts-ignore
 import {checkSingleton} from "./patternChecker.ts";
 
@@ -71,17 +71,63 @@ app.post("/parse", async (req: Request, res: Response) => {
           temp.getRelations()
         );
         if (classDiagram.getRelations().length > 0) {
-        await createClassesTable(conn);
-        await createRelationsTable(conn);
+
+          await initDatabase(conn);
+
+          //insert methods and members
+          classDiagram.getClasses().forEach(async _class => {
+            _class.members.forEach(async member=> {
+              await conn("members")
+              .insert({
+                returnType: member.returnType,
+                name: member.name,
+                accesibility: member.accesibility,
+                classifier: member.classifier
+              })
+              .then()
+              .catch((e) => {
+                console.log(e);
+                throw e;
+              });
+            });
+
+            _class.members.forEach(async method=> {
+              await conn("methods")
+              .insert({
+                returnType: method.returnType,
+                name: method.name,
+                accessibility: method.accesibility,
+                classifier: method.classifier
+              })
+              .then()
+              .catch((e) => {
+                console.log(e);
+                throw e;
+              });
+            });
+            
+        })
+
+        //insert classes
+        await conn("classes")
+          .insert(classDiagram.getClasses())
+          .then(() => console.log("classes inserted"))
+          .catch((e) => {
+            console.log(e);
+            throw e;
+          });
+
+
+        //insert relations
         await conn("relations")
           .insert(classDiagram.getRelations())
-          .then(() => console.log("data inserted"))
+          .then(() => console.log("relations inserted"))
           .catch((e) => {
             console.log(e);
             throw e;
           });
         }
-        console.log(checkSingleton(classDiagram,'Singleton'));
+        console.log(`Is class singleton: ${checkSingleton(classDiagram,'Singleton')}`);
         sendResponse(res,classDiagram,graphType);
         break;
       case "er":
@@ -95,5 +141,12 @@ app.post("/parse", async (req: Request, res: Response) => {
     }
   } catch (e) {
     console.log(e);
+  }
+
+  async function initDatabase(conn: any) {
+    await createMethodsTable(conn);
+    await createMembersTable(conn);
+    await createClassesTable(conn);
+    await createRelationsTable(conn);
   }
 });
