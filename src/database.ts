@@ -1,5 +1,6 @@
 import { Knex } from "../node_modules/knex/knex.js";
-//fix
+
+import { Member, Method, Relation, _Class } from "./Charts/ClassDiagram.js";
 
 export async function createMethodsTable(knex: Knex): Promise<void> {
   return knex.schema
@@ -7,12 +8,13 @@ export async function createMethodsTable(knex: Knex): Promise<void> {
       table.increments("id").primary();
       table.string("returnType");
       table.string("name");
-      table.string("accesibility");
+      table.string("accessibility");
       table.string("classifier");
+      table.string("class");
     })
-    .then(res => {
+    .then((res) => {
       console.log("Methods table created");
-    })
+    });
 }
 
 export async function createMembersTable(knex: Knex): Promise<void> {
@@ -23,12 +25,12 @@ export async function createMembersTable(knex: Knex): Promise<void> {
       table.string("name");
       table.string("accessibility");
       table.string("classifier");
+      table.string("class");
     })
-    .then(res => {
+    .then((res) => {
       console.log("Members table created");
-    })
+    });
 }
-
 
 export async function createClassesTable(knex: Knex): Promise<void> {
   return knex.schema
@@ -36,7 +38,7 @@ export async function createClassesTable(knex: Knex): Promise<void> {
       table.string("id").primary();
       table.string("type");
       table.string("members");
-      table.string("methods")
+      table.string("methods");
     })
     .then((res) => {
       console.log("Classes table created");
@@ -47,9 +49,9 @@ export async function createRelationsTable(knex: Knex): Promise<void> {
   return knex.schema
     .createTable("relations", (table) => {
       table.increments("id").primary();
-      table.string("first_class")
+      table.string("first_class");
       table.string("relation");
-      table.string("second_class")
+      table.string("second_class");
     })
     .then((res) => {
       console.log("Relations table created");
@@ -57,19 +59,17 @@ export async function createRelationsTable(knex: Knex): Promise<void> {
 }
 
 //get all relations
-export async function getAllRelations(conn): Promise<string[]> {
-  let relationsArray: string[] = [];
+export async function getAllRelations(conn): Promise<Relation[]> {
+  let relationsArray: Relation[] = [];
 
-  conn
+  await conn
     .from("relations")
     .select("*")
-    .then((rows) =>
+    .then((rows) => {
       rows.forEach((row) => {
-        relationsArray.push(
-          `${row["id"]} ${row["first_class"]} ${row["relation"]} ${row["second_class"]}`
-        );
-      })
-    )
+        relationsArray.push(row);
+      });
+    })
     .catch((e) => {
       console.log(e);
       throw e;
@@ -81,18 +81,16 @@ export async function getAllRelations(conn): Promise<string[]> {
 export async function getAllWithRelation(
   relationName: string,
   conn
-): Promise<string[]> {
-  let relationsArray: string[] = [];
+): Promise<Relation[]> {
+  let relationsArray: Relation[] = [];
 
-  conn
+  await conn
     .from("relations")
     .select("*")
     .where({ relation: relationName })
     .then((rows) =>
       rows.forEach((row) => {
-        relationsArray.push(
-          `${row["id"]} ${row["first_class"]} ${row["relation"]} ${row["second_class"]}`
-        );
+        relationsArray.push(row);
       })
     )
     .catch((e) => {
@@ -103,18 +101,113 @@ export async function getAllWithRelation(
   return relationsArray;
 }
 
-export async function getAllMethods(conn): Promise<string[]> {
-
-  let methods: string[] = [];
-
+export async function checkSingletonByName(
+  className: string,
   conn
+): Promise<boolean> {
+  let classMembers: Member[] = [];
+  let classMethods: Method[] = [];
+  let allOtherMembers: Member[] = [];
+  let ok: number = 0;
+
+  await conn
+    .from("members")
+    .select("*")
+    .where({ class: className })
+    .then((rows) => {
+      rows.forEach((row) => {
+        classMembers.push(row);
+      });
+    });
+
+  await conn
+    .from("methods")
+    .select("*")
+    .where({ class: className })
+    .then((rows) => {
+      rows.forEach((row) => {
+        classMethods.push(row);
+      });
+    });
+
+    await conn
+    .from("members")
+    .select("*")
+    .whereNot({ class: className })
+    .then((rows) => {
+      rows.forEach((row) => {
+        allOtherMembers.push(row);
+      });
+    });
+
+    //step 1 check for private static instance of class
+  classMembers.forEach((member) => {
+    if (
+      member.returnType === className &&
+      member.accessibility === "private" &&
+      member.classifier === "static"
+    ) {
+      ok = 1;
+    }
+  });
+
+  if (ok == 0) {
+    return false;
+  }
+
+  //step 2 check for private constructor
+  for (var method of classMethods) {
+    if (method.accessibility === "private" && method.name === className) {
+      ok = 1;
+      break;
+    } else {
+      ok = 0;
+    }
+  }
+
+  if (ok == 0) {
+    return false;
+  }
+
+  //step 3 public method returning instance
+  for (var method of classMethods) {
+    if (
+      method.accessibility === "public" &&
+      method.returnType === className &&
+      method.classifier === "static"
+    ) {
+      ok = 1;
+      break;
+    } else {
+      ok = 0;
+    }
+  }
+
+  if (ok == 0) {
+    return false;
+  }
+
+  //step 4 check other class members for singleton class instance
+
+  allOtherMembers.forEach(member => {
+    if (member.returnType === className) {
+      ok=0;
+    }
+  });
+  
+  if (ok==1) {return true;}
+  else {return false;}
+}
+
+export async function getAllMethods(conn): Promise<Method[]> {
+  let methods: Method[] = [];
+
+  await conn
     .from("methods")
     .select("*")
     .then((rows) =>
       rows.forEach((row) => {
-        methods.push(
-          `${row["id"]} ${row["returnType"]} ${row["name"]} ${row["accessibility"]} ${row["classifier"]}`
-        );
+        methods.push(row);
       })
     )
     .catch((e) => {
@@ -125,18 +218,15 @@ export async function getAllMethods(conn): Promise<string[]> {
   return methods;
 }
 
-export async function getAllMembers(conn): Promise<string[]> {
+export async function getAllMembers(conn): Promise<Member[]> {
+  let members: Member[] = [];
 
-  let members: string[] = [];
-
-  conn
+  await conn
     .from("members")
     .select("*")
     .then((rows) =>
       rows.forEach((row) => {
-        members.push(
-          `${row["id"]} ${row["returnType"]} ${row["name"]} ${row["accessibility"]} ${row["classifier"]}`
-        );
+        members.push(row);
       })
     )
     .catch((e) => {
@@ -147,17 +237,15 @@ export async function getAllMembers(conn): Promise<string[]> {
   return members;
 }
 
-export async function getAllClasses(conn): Promise<string[]> {
-  let classes: string[] = [];
+export async function getAllClasses(conn): Promise<_Class[]> {
+  let classes: _Class[] = [];
 
-  conn
+  await conn
     .from("classes")
     .select("*")
     .then((rows) =>
       rows.forEach((row) => {
-        classes.push(
-          `${row["id"]} ${row["type"]} ${row["members"]} ${row["methods"]}`
-        );
+        classes.push(row);
       })
     )
     .catch((e) => {
@@ -167,4 +255,3 @@ export async function getAllClasses(conn): Promise<string[]> {
 
   return classes;
 }
-

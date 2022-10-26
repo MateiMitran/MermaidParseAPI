@@ -2,12 +2,20 @@ import express, { Request, Response } from "express";
 import * as mermaid from "mermaid";
 const app = express();
 const port = 8080;
-// @ts-ignore
-import knex from "../node_modules/knex/knex.js";import ClassDiagram from "./Charts/ClassDiagram.ts";import ERDiagram from "./Charts/ERDiagram.ts";import FlowChart from "./Charts/Flowchart.ts";import SequenceDiagram from "./Charts/SequenceDiagram.ts";
-//@ts-ignore
-import { createClassesTable, createRelationsTable, createMethodsTable, createMembersTable} from "./database.ts";
-//@ts-ignore
-import {checkSingleton} from "./patternChecker.ts";
+
+import knex from "knex";
+import ClassDiagram from "./Charts/ClassDiagram.js";
+import ERDiagram from "./Charts/ERDiagram.js";
+import FlowChart from "./Charts/Flowchart.js";
+import SequenceDiagram from "./Charts/SequenceDiagram.js";
+
+import {
+  checkSingletonByName,
+  createClassesTable,
+  createMembersTable,
+  createMethodsTable,
+  createRelationsTable,
+} from "./database.js";
 
 app.use(express.json());
 
@@ -55,15 +63,23 @@ app.post("/parse", async (req: Request, res: Response) => {
 
     //clear parser
     mermaid.default.mermaidAPI.parse(input).parser.yy.clear();
-    // @ts-ignore parse input
+    //parse input
     const temp = mermaid.default.mermaidAPI.parse(input).parser.yy;
     const graphType = temp.graphType;
     switch (graphType) {
       case "flowchart-v2":
-        sendResponse(res,new FlowChart(temp.getVertices(), temp.getEdges()), graphType);
+        sendResponse(
+          res,
+          new FlowChart(temp.getVertices(), temp.getEdges()),
+          graphType
+        );
         break;
       case "sequence":
-        sendResponse(res, new SequenceDiagram(temp.getActors(), temp.getMessages()), graphType);
+        sendResponse(
+          res,
+          new SequenceDiagram(temp.getActors(), temp.getMessages()),
+          graphType
+        );
         break;
       case "classDiagram":
         let classDiagram: ClassDiagram = new ClassDiagram(
@@ -71,67 +87,76 @@ app.post("/parse", async (req: Request, res: Response) => {
           temp.getRelations()
         );
         if (classDiagram.getRelations().length > 0) {
-
           await initDatabase(conn);
 
           //insert methods and members
-          classDiagram.getClasses().forEach(async _class => {
-            _class.members.forEach(async member=> {
+          classDiagram.getClasses().forEach(async (_class) => {
+            _class.members.forEach(async (member) => {
               await conn("members")
-              .insert({
-                returnType: member.returnType,
-                name: member.name,
-                accesibility: member.accesibility,
-                classifier: member.classifier
-              })
-              .then()
-              .catch((e) => {
-                console.log(e);
-                throw e;
-              });
+                .insert({
+                  returnType: getMemberReturnType(member),
+                  name: getMemberName(member),
+                  accessibility: getAccesibility(member),
+                  classifier: getClassifierMember(member),
+                  class: _class.id,
+                })
+                .then()
+                .catch((e) => {
+                  console.log(e);
+                  throw e;
+                });
             });
 
-            _class.members.forEach(async method=> {
+            _class.methods.forEach(async (method) => {
               await conn("methods")
-              .insert({
-                returnType: method.returnType,
-                name: method.name,
-                accessibility: method.accesibility,
-                classifier: method.classifier
-              })
-              .then()
-              .catch((e) => {
-                console.log(e);
-                throw e;
-              });
+                .insert({
+                  returnType: getMethodReturnType(method),
+                  name: getMethodName(method),
+                  accessibility: getAccesibility(method),
+                  classifier: getClassifierMethod(method),
+                  class: _class.id,
+                })
+                .then()
+                .catch((e) => {
+                  console.log(e);
+                  throw e;
+                });
             });
-            
-        })
-
-        //insert classes
-        await conn("classes")
-          .insert(classDiagram.getClasses())
-          .then(() => console.log("classes inserted"))
-          .catch((e) => {
-            console.log(e);
-            throw e;
           });
 
+          //insert classes
+          await conn("classes")
+            .insert(classDiagram.getClasses())
+            .then(() => console.log("classes inserted"))
+            .catch((e) => {
+              console.log(e);
+              throw e;
+            });
 
-        //insert relations
-        await conn("relations")
-          .insert(classDiagram.getRelations())
-          .then(() => console.log("relations inserted"))
-          .catch((e) => {
-            console.log(e);
-            throw e;
+          //insert relations
+          await conn("relations")
+            .insert(classDiagram.getRelations())
+            .then(() => console.log("relations inserted"))
+            .catch((e) => {
+              console.log(e);
+              throw e;
+            });
+
+          classDiagram.getClasses().forEach(async (_class) => {
+            await checkSingletonByName(_class.id, conn).then((res) =>
+              console.log(`Class with name ${_class.id} is singleton : ${res}`)
+            );
           });
         }
-        console.log(`Is class singleton: ${checkSingleton(classDiagram,'Singleton')}`);
-        sendResponse(res,classDiagram,graphType);
+
+        sendResponse(res, classDiagram, graphType);
         break;
       case "er":
-        sendResponse(res, new ERDiagram(temp.getEntities(), temp.getRelationships()), graphType);
+        sendResponse(
+          res,
+          new ERDiagram(temp.getEntities(), temp.getRelationships()),
+          graphType
+        );
         break;
       default:
         res.status(418).send({
@@ -150,3 +175,82 @@ app.post("/parse", async (req: Request, res: Response) => {
     await createRelationsTable(conn);
   }
 });
+
+function getAccesibility(member: string): string {
+  let char: string = member.charAt(0);
+
+  switch (char) {
+    case "+":
+      return "public";
+    case "-":
+      return "private";
+    case "#":
+      return "protected";
+    case "~":
+      return "package";
+    default:
+      return "none";
+  }
+}
+
+function getClassifierMember(member: string): string {
+  let char: string = member.charAt(member.length - 1);
+  switch (char) {
+    case "$":
+      return "static";
+    case "*":
+      return "abstract";
+    default:
+      return "none";
+  }
+}
+
+function getClassifierMethod(method: string): string {
+  let char: string = method.substring(method.indexOf(")") + 1).charAt(0);
+  switch (char) {
+    case "$":
+      return "static";
+    case "*":
+      return "abstract";
+    default:
+      return "none";
+  }
+}
+
+function getMemberReturnType(member: string): string {
+  if (getAccesibility(member) === "none") {
+    return member.substring(0, member.indexOf(" "));
+  } else {
+    return member.substring(1, member.indexOf(" "));
+  }
+}
+
+function getMemberName(member: string) {
+  if (getClassifierMember(member) !== "none") {
+    return member
+      .substring(member.indexOf(" ") + 1)
+      .trim()
+      .slice(0, -1);
+  } else {
+    return member.substring(member.indexOf(" ") + 1).trim();
+  }
+}
+
+function getMethodReturnType(method: string): string {
+  if (getClassifierMethod(method) !== "none") {
+    return method
+      .substring(method.indexOf(")") + 1)
+      .substring(1)
+      .trim();
+  } else {
+    return method.substring(method.indexOf(")") + 1).trim();
+  }
+}
+
+function getMethodName(method: string): string {
+  if (getAccesibility(method) === "none") {
+    return method.substring(0, method.indexOf("("));
+  } else {
+    return method.substring(1, method.indexOf("("));
+  }
+}

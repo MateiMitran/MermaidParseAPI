@@ -18,14 +18,15 @@
 
         "esModuleInterop": true,
 
-        "module":"esnext"
+        "module":"esnext",
+        
+        "moduleResolution": "node"
 
   },
   "ts-node": {
     "esm": true
   },
-  "include": [
-    "**/*.ts"
-  ],      
+  
+  "include": ["src/**/*"]      
 
 }

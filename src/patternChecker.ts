@@ -1,12 +1,12 @@
 //@ts-ignore
 import ClassDiagram,{_Class} from "./Charts/ClassDiagram.ts";
-
+import { Knex } from "../node_modules/knex/knex.js";
 
 
 export function checkSingleton(classDiagram: ClassDiagram, id: string): boolean {
 
-    var singletonClass: _Class;
-    var classes: _Class[];
+    let singletonClass: _Class;
+    let classes: _Class[];
 
     classes = classDiagram.getClasses();
     if (!classes) {return false;}

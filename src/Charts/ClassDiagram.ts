@@ -7,9 +7,9 @@ export type Relation = {
 
 export type _Class = {
   id: string,
-  type: string
-  members: Member[],
-  methods: Method[],
+  type: string,
+  members: string[],
+  methods: string[],
 }
 
 export type Member = {
