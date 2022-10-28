@@ -15,6 +15,8 @@ import {
   createMembersTable,
   createMethodsTable,
   createRelationsTable,
+  getAllMembers,
+  getAllMethods,
 } from "./database.js";
 
 app.use(express.json());
@@ -94,7 +96,7 @@ app.post("/parse", async (req: Request, res: Response) => {
             _class.members.forEach(async (member) => {
               await conn("members")
                 .insert({
-                  returnType: getMemberReturnType(member),
+                  type: getMemberReturnType(member),
                   name: getMemberName(member),
                   accessibility: getAccesibility(member),
                   classifier: getClassifierMember(member),
@@ -110,7 +112,7 @@ app.post("/parse", async (req: Request, res: Response) => {
             _class.methods.forEach(async (method) => {
               await conn("methods")
                 .insert({
-                  returnType: getMethodReturnType(method),
+                  returnType: (getMethodReturnType(method)!=="") ? getMethodReturnType(method) : "void",
                   name: getMethodName(method),
                   accessibility: getAccesibility(method),
                   classifier: getClassifierMethod(method),
@@ -206,7 +208,10 @@ function getClassifierMember(member: string): string {
 }
 
 function getClassifierMethod(method: string): string {
-  let char: string = method.substring(method.indexOf(")") + 1).charAt(0);
+  let char: string = method
+    .substring(method.indexOf(")") + 1)
+    .trim()
+    .charAt(0);
   switch (char) {
     case "$":
       return "static";
@@ -218,21 +223,38 @@ function getClassifierMethod(method: string): string {
 }
 
 function getMemberReturnType(member: string): string {
+  member = member.replace(/\s+/g, " ");
   if (getAccesibility(member) === "none") {
     return member.substring(0, member.indexOf(" "));
   } else {
-    return member.substring(1, member.indexOf(" "));
+    if (member.charAt(1)===" ") {
+      return member.substring(2).substring(0, member.substring(2).indexOf(" "));
+    } else {
+      return member.substring(1, member.indexOf(" "));
+    }
   }
 }
 
 function getMemberName(member: string) {
+  member = member.replace(/\s+/g, " ");
   if (getClassifierMember(member) !== "none") {
-    return member
-      .substring(member.indexOf(" ") + 1)
-      .trim()
-      .slice(0, -1);
+    if (getAccesibility(member) !== "none") {
+      return member.substring(1).substring(member.substring(1).indexOf(" ")).slice(0,-1).trim();
+    } else {
+      return member
+        .substring(member.indexOf(" ") + 1)
+        .slice(0, -1)
+        .trim();
+    }
   } else {
-    return member.substring(member.indexOf(" ") + 1).trim();
+    if (getAccesibility(member) !== "none") {
+      return member
+            .substring(1)
+            .trim()
+            .substring(member.substring(1).trim().indexOf(" ") + 1)
+    } else {
+      return member.substring(member.indexOf(" ") + 1).trim();
+    }
   }
 }
 
@@ -249,8 +271,8 @@ function getMethodReturnType(method: string): string {
 
 function getMethodName(method: string): string {
   if (getAccesibility(method) === "none") {
-    return method.substring(0, method.indexOf("("));
+    return method.substring(0, method.indexOf("(")).trim();
   } else {
-    return method.substring(1, method.indexOf("("));
+    return method.substring(1, method.indexOf("(")).trim();
   }
 }

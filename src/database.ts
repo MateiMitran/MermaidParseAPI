@@ -1,4 +1,4 @@
-import { Knex } from "../node_modules/knex/knex.js";
+import { Knex } from "knex";
 
 import { Member, Method, Relation, _Class } from "./Charts/ClassDiagram.js";
 
@@ -21,7 +21,7 @@ export async function createMembersTable(knex: Knex): Promise<void> {
   return knex.schema
     .createTable("members", (table) => {
       table.increments("id").primary();
-      table.string("returnType");
+      table.string("type");
       table.string("name");
       table.string("accessibility");
       table.string("classifier");
@@ -108,7 +108,7 @@ export async function checkSingletonByName(
   let classMembers: Member[] = [];
   let classMethods: Method[] = [];
   let allOtherMembers: Member[] = [];
-  let ok: number = 0;
+  let ok: boolean = false;
 
   await conn
     .from("members")
@@ -143,29 +143,29 @@ export async function checkSingletonByName(
     //step 1 check for private static instance of class
   classMembers.forEach((member) => {
     if (
-      member.returnType === className &&
+      member.type === className &&
       member.accessibility === "private" &&
       member.classifier === "static"
     ) {
-      ok = 1;
+      ok = true;
     }
   });
 
-  if (ok == 0) {
+  if (ok == false) {
     return false;
   }
 
   //step 2 check for private constructor
   for (var method of classMethods) {
     if (method.accessibility === "private" && method.name === className) {
-      ok = 1;
+      ok=true;
       break;
     } else {
-      ok = 0;
+      ok=false;
     }
   }
 
-  if (ok == 0) {
+  if (ok == false) {
     return false;
   }
 
@@ -176,27 +176,26 @@ export async function checkSingletonByName(
       method.returnType === className &&
       method.classifier === "static"
     ) {
-      ok = 1;
+      ok=true;
       break;
     } else {
-      ok = 0;
+      ok=false;
     }
   }
 
-  if (ok == 0) {
+  if (ok == false) {
     return false;
   }
 
   //step 4 check other class members for singleton class instance
 
   allOtherMembers.forEach(member => {
-    if (member.returnType === className) {
-      ok=0;
+    if (member.type === className) {
+      ok=false;
     }
   });
-  
-  if (ok==1) {return true;}
-  else {return false;}
+
+  return ok;
 }
 
 export async function getAllMethods(conn): Promise<Method[]> {

@@ -14,7 +14,7 @@ export type _Class = {
 
 export type Member = {
   id: number,
-  returnType: string,
+  type: string,
   name: string,
   accessibility: string,
   classifier: string 
