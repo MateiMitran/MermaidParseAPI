@@ -1,6 +1,78 @@
 import { Knex } from "knex";
 
-import { Member, Method, Relation, _Class } from "./Charts/ClassDiagram.js";
+import ClassDiagram, { Member, Method, Relation } from "./ClassDiagram";
+import {
+  getAccessibility,
+  getClassifierMember,
+  getClassifierMethod,
+  getMemberName,
+  getMemberReturnType,
+  getMethodName,
+  getMethodReturnType,
+} from "./index";
+
+export async function initDatabase(conn: any, classDiagram: ClassDiagram) {
+  await createMethodsTable(conn);
+  await createMembersTable(conn);
+  await createClassesTable(conn);
+  await createRelationsTable(conn);
+
+  //insert methods and members
+  classDiagram.getClasses().forEach(async (_class) => {
+    _class.members.forEach(async (member) => {
+      await conn("members")
+        .insert({
+          type: getMemberReturnType(member),
+          name: getMemberName(member),
+          accessibility: getAccessibility(member),
+          classifier: getClassifierMember(member),
+          class: _class.id,
+        })
+        .then()
+        .catch((e) => {
+          console.log(e);
+          throw e;
+        });
+    });
+
+    _class.methods.forEach(async (method) => {
+      await conn("methods")
+        .insert({
+          returnType:
+            getMethodReturnType(method) !== ""
+              ? getMethodReturnType(method)
+              : "void",
+          name: getMethodName(method),
+          accessibility: getAccessibility(method),
+          classifier: getClassifierMethod(method),
+          class: _class.id,
+        })
+        .then()
+        .catch((e) => {
+          console.log(e);
+          throw e;
+        });
+    });
+  });
+
+  //insert classes
+  await conn("classes")
+    .insert(classDiagram.getClasses())
+    .then(() => console.log("classes inserted"))
+    .catch((e) => {
+      console.log(e);
+      throw e;
+    });
+
+  //insert relations
+  await conn("relations")
+    .insert(classDiagram.getRelations())
+    .then(() => console.log("relations inserted"))
+    .catch((e) => {
+      console.log(e);
+      throw e;
+    });
+}
 
 export async function createMethodsTable(knex: Knex): Promise<void> {
   return knex.schema
@@ -58,6 +130,19 @@ export async function createRelationsTable(knex: Knex): Promise<void> {
     });
 }
 
+
+export async function createDesignPatternTable(knex: Knex): Promise<void> {
+  return knex.schema
+    .createTable("design_patterns", (table) => {
+      table.increments("id").primary();
+      table.string("className");
+      table.boolean("singleton");
+    })
+    .then((res) => {
+      console.log("Design pattern table created");
+    });
+}
+
 //get all relations
 export async function getAllRelations(conn): Promise<Relation[]> {
   let relationsArray: Relation[] = [];
@@ -108,7 +193,6 @@ export async function checkSingletonByName(
   let classMembers: Member[] = [];
   let classMethods: Method[] = [];
   let allOtherMembers: Member[] = [];
-  let ok: boolean = false;
 
   await conn
     .from("members")
@@ -130,7 +214,7 @@ export async function checkSingletonByName(
       });
     });
 
-    await conn
+  await conn
     .from("members")
     .select("*")
     .whereNot({ class: className })
@@ -140,117 +224,64 @@ export async function checkSingletonByName(
       });
     });
 
-    //step 1 check for private static instance of class
-  classMembers.forEach((member) => {
-    if (
-      member.type === className &&
-      member.accessibility === "private" &&
-      member.classifier === "static"
-    ) {
-      ok = true;
-    }
-  });
-
-  if (ok == false) {
+  if (!classMembers.length) {
     return false;
+  }
+
+  //step 1 check for private static instance of class
+
+  for (let i = 0; i < classMembers.length; i++) {
+    if (
+      classMembers[i].type === className &&
+      classMembers[i].accessibility === "private" &&
+      classMembers[i].classifier === "static"
+    ) {
+      break;
+    } else {
+      if (i == classMembers.length - 1) {
+        return false;
+      }
+    }
   }
 
   //step 2 check for private constructor
-  for (var method of classMethods) {
-    if (method.accessibility === "private" && method.name === className) {
-      ok=true;
+
+  for (let i = 0; i < classMethods.length; i++) {
+    if (
+      classMethods[i].accessibility === "private" &&
+      classMethods[i].name === className
+    ) {
       break;
     } else {
-      ok=false;
+      if (i == classMethods.length - 1) {
+        return false;
+      }
     }
-  }
-
-  if (ok == false) {
-    return false;
   }
 
   //step 3 public method returning instance
-  for (var method of classMethods) {
+
+  for (let i = 0; i < classMethods.length; i++) {
     if (
-      method.accessibility === "public" &&
-      method.returnType === className &&
-      method.classifier === "static"
+      classMethods[i].accessibility === "public" &&
+      classMethods[i].returnType === className &&
+      classMethods[i].classifier === "static"
     ) {
-      ok=true;
       break;
     } else {
-      ok=false;
+      if (i == classMethods.length - 1) {
+        return false;
+      }
     }
-  }
-
-  if (ok == false) {
-    return false;
   }
 
   //step 4 check other class members for singleton class instance
 
-  allOtherMembers.forEach(member => {
+  allOtherMembers.forEach((member) => {
     if (member.type === className) {
-      ok=false;
+      return false;
     }
   });
 
-  return ok;
-}
-
-export async function getAllMethods(conn): Promise<Method[]> {
-  let methods: Method[] = [];
-
-  await conn
-    .from("methods")
-    .select("*")
-    .then((rows) =>
-      rows.forEach((row) => {
-        methods.push(row);
-      })
-    )
-    .catch((e) => {
-      console.log(e);
-      throw e;
-    });
-
-  return methods;
-}
-
-export async function getAllMembers(conn): Promise<Member[]> {
-  let members: Member[] = [];
-
-  await conn
-    .from("members")
-    .select("*")
-    .then((rows) =>
-      rows.forEach((row) => {
-        members.push(row);
-      })
-    )
-    .catch((e) => {
-      console.log(e);
-      throw e;
-    });
-
-  return members;
-}
-
-export async function getAllClasses(conn): Promise<_Class[]> {
-  let classes: _Class[] = [];
-
-  await conn
-    .from("classes")
-    .select("*")
-    .then((rows) =>
-      rows.forEach((row) => {
-        classes.push(row);
-      })
-    )
-    .catch((e) => {
-      console.log(e);
-      throw e;
-    });
-
-  return classes;
+  return true;
 }

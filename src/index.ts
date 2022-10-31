@@ -4,20 +4,13 @@ const app = express();
 const port = 8080;
 
 import knex from "knex";
-import ClassDiagram from "./Charts/ClassDiagram.js";
-import ERDiagram from "./Charts/ERDiagram.js";
-import FlowChart from "./Charts/Flowchart.js";
-import SequenceDiagram from "./Charts/SequenceDiagram.js";
+import ClassDiagram from "./Charts/classDiagram/ClassDiagram";
 
 import {
   checkSingletonByName,
-  createClassesTable,
-  createMembersTable,
-  createMethodsTable,
-  createRelationsTable,
-  getAllMembers,
-  getAllMethods,
-} from "./database.js";
+  getAllRelations,
+  initDatabase,
+} from "./Charts/classDiagram/database";
 
 app.use(express.json());
 
@@ -48,6 +41,7 @@ app.post("/parse", async (req: Request, res: Response) => {
   try {
     console.log("[Starting Parse]");
     const input = req.body.input;
+
     if (!input) {
       res.status(400).send({
         message: "No input found!",
@@ -68,211 +62,36 @@ app.post("/parse", async (req: Request, res: Response) => {
     //parse input
     const temp = mermaid.default.mermaidAPI.parse(input).parser.yy;
     const graphType = temp.graphType;
-    switch (graphType) {
-      case "flowchart-v2":
-        sendResponse(
-          res,
-          new FlowChart(temp.getVertices(), temp.getEdges()),
-          graphType
-        );
-        break;
-      case "sequence":
-        sendResponse(
-          res,
-          new SequenceDiagram(temp.getActors(), temp.getMessages()),
-          graphType
-        );
-        break;
-      case "classDiagram":
-        let classDiagram: ClassDiagram = new ClassDiagram(
-          temp.getClasses(),
-          temp.getRelations()
-        );
-        if (classDiagram.getRelations().length > 0) {
-          await initDatabase(conn);
 
-          //insert methods and members
-          classDiagram.getClasses().forEach(async (_class) => {
-            _class.members.forEach(async (member) => {
-              await conn("members")
-                .insert({
-                  type: getMemberReturnType(member),
-                  name: getMemberName(member),
-                  accessibility: getAccesibility(member),
-                  classifier: getClassifierMember(member),
-                  class: _class.id,
-                })
-                .then()
-                .catch((e) => {
-                  console.log(e);
-                  throw e;
-                });
-            });
+    let classDiagram: ClassDiagram = new ClassDiagram(
+      temp.getClasses(),
+      temp.getRelations()
+    );
+    if (classDiagram.getRelations().length > 0) {
+      await initDatabase(conn, classDiagram);
 
-            _class.methods.forEach(async (method) => {
-              await conn("methods")
-                .insert({
-                  returnType: (getMethodReturnType(method)!=="") ? getMethodReturnType(method) : "void",
-                  name: getMethodName(method),
-                  accessibility: getAccesibility(method),
-                  classifier: getClassifierMethod(method),
-                  class: _class.id,
-                })
-                .then()
-                .catch((e) => {
-                  console.log(e);
-                  throw e;
-                });
-            });
-          });
+      console.log("[RELATIONS]");
 
-          //insert classes
-          await conn("classes")
-            .insert(classDiagram.getClasses())
-            .then(() => console.log("classes inserted"))
-            .catch((e) => {
-              console.log(e);
-              throw e;
-            });
-
-          //insert relations
-          await conn("relations")
-            .insert(classDiagram.getRelations())
-            .then(() => console.log("relations inserted"))
-            .catch((e) => {
-              console.log(e);
-              throw e;
-            });
-
-          classDiagram.getClasses().forEach(async (_class) => {
-            await checkSingletonByName(_class.id, conn).then((res) =>
-              console.log(`Class with name ${_class.id} is singleton : ${res}`)
-            );
-          });
-        }
-
-        sendResponse(res, classDiagram, graphType);
-        break;
-      case "er":
-        sendResponse(
-          res,
-          new ERDiagram(temp.getEntities(), temp.getRelationships()),
-          graphType
-        );
-        break;
-      default:
-        res.status(418).send({
-          message: "Invalid diagram type!",
+      await getAllRelations(conn).then((res) => {
+        let i: number = 1;
+        res.forEach((r) => {
+          console.log(
+            `[${i}] ${r.first_class} has a relation of ${r.relation} with ${r.second_class}`
+          );
+          i++;
         });
-        break;
+      });
+
+      classDiagram.getClasses().forEach(async (_class) => {
+        await checkSingletonByName(_class.id, conn).then((res) =>
+          console.log(`Class with name ${_class.id} is singleton : ${res}`)
+        );
+      });
     }
+
+    sendResponse(res, classDiagram, graphType);
   } catch (e) {
     console.log(e);
-  }
-
-  async function initDatabase(conn: any) {
-    await createMethodsTable(conn);
-    await createMembersTable(conn);
-    await createClassesTable(conn);
-    await createRelationsTable(conn);
+    throw e;
   }
 });
-
-function getAccesibility(member: string): string {
-  let char: string = member.charAt(0);
-
-  switch (char) {
-    case "+":
-      return "public";
-    case "-":
-      return "private";
-    case "#":
-      return "protected";
-    case "~":
-      return "package";
-    default:
-      return "none";
-  }
-}
-
-function getClassifierMember(member: string): string {
-  let char: string = member.charAt(member.length - 1);
-  switch (char) {
-    case "$":
-      return "static";
-    case "*":
-      return "abstract";
-    default:
-      return "none";
-  }
-}
-
-function getClassifierMethod(method: string): string {
-  let char: string = method
-    .substring(method.indexOf(")") + 1)
-    .trim()
-    .charAt(0);
-  switch (char) {
-    case "$":
-      return "static";
-    case "*":
-      return "abstract";
-    default:
-      return "none";
-  }
-}
-
-function getMemberReturnType(member: string): string {
-  member = member.replace(/\s+/g, " ");
-  if (getAccesibility(member) === "none") {
-    return member.substring(0, member.indexOf(" "));
-  } else {
-    if (member.charAt(1)===" ") {
-      return member.substring(2).substring(0, member.substring(2).indexOf(" "));
-    } else {
-      return member.substring(1, member.indexOf(" "));
-    }
-  }
-}
-
-function getMemberName(member: string) {
-  member = member.replace(/\s+/g, " ");
-  if (getClassifierMember(member) !== "none") {
-    if (getAccesibility(member) !== "none") {
-      return member.substring(1).substring(member.substring(1).indexOf(" ")).slice(0,-1).trim();
-    } else {
-      return member
-        .substring(member.indexOf(" ") + 1)
-        .slice(0, -1)
-        .trim();
-    }
-  } else {
-    if (getAccesibility(member) !== "none") {
-      return member
-            .substring(1)
-            .trim()
-            .substring(member.substring(1).trim().indexOf(" ") + 1)
-    } else {
-      return member.substring(member.indexOf(" ") + 1).trim();
-    }
-  }
-}
-
-function getMethodReturnType(method: string): string {
-  if (getClassifierMethod(method) !== "none") {
-    return method
-      .substring(method.indexOf(")") + 1)
-      .substring(1)
-      .trim();
-  } else {
-    return method.substring(method.indexOf(")") + 1).trim();
-  }
-}
-
-function getMethodName(method: string): string {
-  if (getAccesibility(method) === "none") {
-    return method.substring(0, method.indexOf("(")).trim();
-  } else {
-    return method.substring(1, method.indexOf("(")).trim();
-  }
-}
