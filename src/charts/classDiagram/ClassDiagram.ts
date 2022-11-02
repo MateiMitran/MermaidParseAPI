@@ -34,6 +34,12 @@ export type Method = {
   classifier: string;
 };
 
+export type DesignPattern = {
+  id: number;
+  className: string;
+  singleton: string;
+}
+
 export default class ClassDiagram {
   classes: _Class[];
   relations: Relation[];

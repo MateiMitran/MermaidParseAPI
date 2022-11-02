@@ -1,6 +1,5 @@
 import knex from "knex";
 import {
-  checkSingletonByName,
   createClassesTable,
   createMembersTable,
   createMethodsTable,
@@ -177,6 +176,19 @@ const members = [
   },
 ];
 
+const patterns = [
+  {
+    id:1,
+    className: "Singleton",
+    singleton: "true"
+  },
+  {
+    id:2,
+    className: "Animal",
+    singleton: "false"
+  }
+];
+
 const conn = knex({
   client: "sqlite3",
   connection: {
@@ -191,6 +203,7 @@ describe("Database tests", () => {
     await createRelationsTable(conn);
     await createMembersTable(conn);
     await createMethodsTable(conn);
+   // await createDesignPatternTable(conn);
     await conn("classes")
       .insert(classes)
       .then(() => console.log("classes inserted"))
@@ -215,6 +228,13 @@ describe("Database tests", () => {
     await conn("methods")
       .insert(methods)
       .then(() => console.log("methods inseretd"))
+      .catch((e) => {
+        console.log(e);
+        throw e;
+      });
+    await conn("patterns")
+      .insert(patterns)
+      .then(() => console.log("patterns inseretd"))
       .catch((e) => {
         console.log(e);
         throw e;
@@ -244,7 +264,7 @@ describe("Database tests", () => {
       });
     });
   });
-
+/** 
   test("Check correct singleton", async () => {
     await checkSingletonByName("Singleton", conn).then((res) => {
       expect(res).toStrictEqual(true);
@@ -262,4 +282,15 @@ describe("Database tests", () => {
       expect(res).toStrictEqual(false);
     });
   });
+
+  test("Get all patterns", async () => {
+    let i:number = 1;
+    await getAllDesignPatterns(conn).then((res)=> {
+      console.log(res);
+        res.forEach(pattern => {
+        expect(JSON.stringify(pattern)).toStrictEqual(JSON.stringify(patterns[i]));
+        i++;
+      });
+    })
+    });*/
 });

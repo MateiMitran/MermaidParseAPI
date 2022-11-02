@@ -1,53 +1,20 @@
-import express, { Request, Response } from "express";
 import * as mermaid from "mermaid";
-const app = express();
-const port = 8080;
 
 import knex from "knex";
-import ClassDiagram from "./Charts/classDiagram/ClassDiagram";
+import ClassDiagram, { Relation } from "./charts/classDiagram/ClassDiagram";
 
-import {
-  checkSingletonByName,
-  getAllRelations,
-  initDatabase,
-} from "./Charts/classDiagram/database";
+import { initDatabase } from "./charts/classDiagram/database";
 
-app.use(express.json());
+import { getAllDesignPatterns } from "./charts/classDiagram/designPatterns/singleton";
 
-app.use(function (req, res, next) {
-  res.header("Access-Control-Allow-Origin", "http://localhost:3000");
-  res.header(
-    "Access-Control-Allow-Headers",
-    "Origin, X-Requested-With, Content-Type, Accept"
-  );
-  next();
-});
+const input =
+  "classDiagram\r\n    Animal <|-- Duck\r\n    Animal <|-- Fish\r\n    Animal <|-- Zebra\r\n    Singleton --> Singleton\r\n    Animal : +int age\r\n    Animal : +String gender\r\n    Animal: +isMammal()\r\n    Animal: +mate()\r\n    class Duck{\r\n        +String beakColor\r\n        +swim()\r\n        +quack()\r\n    }\r\n    class Fish{\r\n        -int sizeInFeet\r\n        -canEat()\r\n    }\r\n    class Zebra{\r\n        +bool is_wild\r\n        +run()\r\n    }\r\n    class Singleton{\r\n        -Singleton singleton$\r\n        -Singleton()\r\n        +getInstance()$ Singleton\r\n   }";
 
-// start the Express server
-app.listen(port, () => {
-  console.log(`server started at http://localhost:${port}`);
-});
-
-function sendResponse(res: Response, chart: any, chartType: string): void {
-  res.status(200).json({
-    chart: chart,
-    chartType: chartType,
-  });
-  res.end();
-  console.log("[Ending parse]");
-}
-
-app.post("/parse", async (req: Request, res: Response) => {
+async function MermaidInterpeter(
+  input: string
+): Promise<{ relations: Relation[] /*, designPattern: DesignPattern[] */ }> {
   try {
     console.log("[Starting Parse]");
-    const input = req.body.input;
-
-    if (!input) {
-      res.status(400).send({
-        message: "No input found!",
-      });
-    }
-
     //establish database connection
     const conn = knex({
       client: "sqlite3",
@@ -61,7 +28,6 @@ app.post("/parse", async (req: Request, res: Response) => {
     mermaid.default.mermaidAPI.parse(input).parser.yy.clear();
     //parse input
     const temp = mermaid.default.mermaidAPI.parse(input).parser.yy;
-    const graphType = temp.graphType;
 
     let classDiagram: ClassDiagram = new ClassDiagram(
       temp.getClasses(),
@@ -70,28 +36,30 @@ app.post("/parse", async (req: Request, res: Response) => {
     if (classDiagram.getRelations().length > 0) {
       await initDatabase(conn, classDiagram);
 
-      console.log("[RELATIONS]");
+      //  console.log("[RELATIONS]");
 
-      await getAllRelations(conn).then((res) => {
-        let i: number = 1;
-        res.forEach((r) => {
-          console.log(
-            `[${i}] ${r.first_class} has a relation of ${r.relation} with ${r.second_class}`
-          );
-          i++;
-        });
-      });
+      //await getAllRelations(conn).then((res) => {
+      //   let i: number = 1;
+      //  res.forEach((r) => {
+      //    console.log(
+      //       `[${i}] ${r.first_class} has a relation of ${r.relation} with ${r.second_class}`
+      //      );
+      //      i++;
+      //    });
+      //  });
 
-      classDiagram.getClasses().forEach(async (_class) => {
-        await checkSingletonByName(_class.id, conn).then((res) =>
-          console.log(`Class with name ${_class.id} is singleton : ${res}`)
-        );
-      });
+        await getAllDesignPatterns(conn).then(res => console.log(res))
+
+
+      return {
+        relations: classDiagram.getRelations(),
+        //designPattern:
+      };
     }
-
-    sendResponse(res, classDiagram, graphType);
   } catch (e) {
     console.log(e);
     throw e;
   }
-});
+}
+
+MermaidInterpeter(input);
