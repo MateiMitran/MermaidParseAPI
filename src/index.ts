@@ -1,18 +1,26 @@
 import * as mermaid from "mermaid";
 
 import knex from "knex";
-import ClassDiagram, { Relation } from "./charts/classDiagram/ClassDiagram";
+import ClassDiagram, {
+  DesignPattern,
+  Relation,
+  _Class,
+} from "./charts/classDiagram/ClassDiagram";
 
-import { initDatabase } from "./charts/classDiagram/database";
+import { getAllClasses, getAllRelations, initDatabase } from "./charts/classDiagram/database";
 
 import { getAllDesignPatterns } from "./charts/classDiagram/designPatterns/singleton";
 
 const input =
   "classDiagram\r\n    Animal <|-- Duck\r\n    Animal <|-- Fish\r\n    Animal <|-- Zebra\r\n    Singleton --> Singleton\r\n    Animal : +int age\r\n    Animal : +String gender\r\n    Animal: +isMammal()\r\n    Animal: +mate()\r\n    class Duck{\r\n        +String beakColor\r\n        +swim()\r\n        +quack()\r\n    }\r\n    class Fish{\r\n        -int sizeInFeet\r\n        -canEat()\r\n    }\r\n    class Zebra{\r\n        +bool is_wild\r\n        +run()\r\n    }\r\n    class Singleton{\r\n        -Singleton singleton$\r\n        -Singleton()\r\n        +getInstance()$ Singleton\r\n   }";
 
-async function MermaidInterpeter(
+export async function MermaidInterpeter(
   input: string
-): Promise<{ relations: Relation[] /*, designPattern: DesignPattern[] */ }> {
+): Promise<{
+  classes: _Class[];
+  relations: Relation[];
+  designPatterns: DesignPattern[];
+}> {
   try {
     console.log("[Starting Parse]");
     //establish database connection
@@ -35,25 +43,14 @@ async function MermaidInterpeter(
     );
     if (classDiagram.getRelations().length > 0) {
       await initDatabase(conn, classDiagram);
-
-      //  console.log("[RELATIONS]");
-
-      //await getAllRelations(conn).then((res) => {
-      //   let i: number = 1;
-      //  res.forEach((r) => {
-      //    console.log(
-      //       `[${i}] ${r.first_class} has a relation of ${r.relation} with ${r.second_class}`
-      //      );
-      //      i++;
-      //    });
-      //  });
-
-        await getAllDesignPatterns(conn).then(res => console.log(res))
-
-
+      let classes: _Class[] = await getAllClasses(conn);
+      let relations: Relation[] =  await getAllRelations(conn);
+      let dPatterns: DesignPattern[] =  await getAllDesignPatterns(conn);
+    
       return {
-        relations: classDiagram.getRelations(),
-        //designPattern:
+        classes: classes,
+        relations: relations,
+        designPatterns: dPatterns,
       };
     }
   } catch (e) {
@@ -62,4 +59,4 @@ async function MermaidInterpeter(
   }
 }
 
-MermaidInterpeter(input);
+await MermaidInterpeter(input).then((res) => console.log(res));

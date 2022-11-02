@@ -68,4 +68,5 @@ export default class ClassDiagram {
   getRelations(): Relation[] {
     return this.relations;
   }
+
 }

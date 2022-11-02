@@ -1,42 +1,44 @@
 import { Knex } from "knex";
-import ClassDiagram, { DesignPattern, Member, Method } from "../ClassDiagram";
+import ClassDiagram, {
+  DesignPattern,
+  Member,
+  Method,
+  _Class,
+} from "../ClassDiagram";
 import { getAll } from "../database";
 
 export async function initSingletonTable(
   conn: Knex,
   classDiagram: ClassDiagram
 ) {
-  await createDesignPatternTable(conn).then(
-    async () =>
-      await insertDesignPatterns(conn, classDiagram).then((res) =>
-        console.log("inserted patterns")
-      )
-  );
+  await createDesignPatternTable(conn);
+  await insertDesignPatterns(conn, classDiagram);
 }
 
-export async function createDesignPatternTable(
-  knex: Knex
-): Promise<Knex.SchemaBuilder> {
-  return knex.schema
-    .createTable("patterns", (table) => {
-      table.increments("id").primary();
-      table.string("className");
-      table.boolean("singleton");
-    });
-knex
-  }
+export async function createDesignPatternTable(knex: Knex) {
+  await knex.schema.createTable("patterns", (table) => {
+    table.increments("id").primary();
+    table.string("className");
+    table.string("singleton");
+  });
+  
+  return knex("patterns").withSchema;
+}
 
 export async function insertDesignPatterns(
-  conn: Knex,
+  knex: Knex,
   classDiagram: ClassDiagram
 ) {
-  classDiagram.getClasses().forEach(async (_class) => {
-    await checkSingletonByName(_class.id, conn).then(async (res) => {
-      await conn("patterns")
-        .insert({ className: _class.id, singleton: res })
-        .then((res) => console.log("Inserted row in pattern collumn" + res));
+  let classes: _Class[] = classDiagram.getClasses();
+  for (let i = 0; i < classes.length; i++) {
+    await knex("patterns").insert({
+      className: classes[i].id,
+      singleton: (await checkSingletonByName(classes[i].id, knex))
+        ? "true"
+        : "false",
     });
-  });
+  }
+
 }
 
 export async function checkSingletonByName(
