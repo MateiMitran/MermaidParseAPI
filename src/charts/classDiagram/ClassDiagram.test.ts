@@ -1,4 +1,4 @@
-import ClassDiagram, {Relation, _Class} from "./ClassDiagram";
+import {ClassDiagram} from "./ClassDiagram";
 
 const classes = {
     Animal: {

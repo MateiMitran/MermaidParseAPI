@@ -1,73 +1,38 @@
 import { Knex } from "knex";
-import ClassDiagram, {
-  DesignPattern,
+import {
+  ClassDiagram,
   Member,
   Method,
   _Class,
 } from "../ClassDiagram";
-import { getAll } from "../database";
+import { getAllWhere } from "../database";
 
-export async function initSingletonTable(
-  conn: Knex,
-  classDiagram: ClassDiagram
-) {
-  await createDesignPatternTable(conn);
-  await insertDesignPatterns(conn, classDiagram);
-}
-
-export async function createDesignPatternTable(knex: Knex) {
-  await knex.schema.createTable("patterns", (table) => {
-    table.increments("id").primary();
-    table.string("className");
-    table.string("singleton");
-  });
-  
-  return knex("patterns").withSchema;
-}
-
-export async function insertDesignPatterns(
+export async function insertSingletons(
   knex: Knex,
   classDiagram: ClassDiagram
 ) {
   let classes: _Class[] = classDiagram.getClasses();
   for (let i = 0; i < classes.length; i++) {
-    await knex("patterns").insert({
-      className: classes[i].id,
-      singleton: (await checkSingletonByName(classes[i].id, knex))
-        ? "true"
-        : "false",
-    });
+    if (await checkSingletonByName(classes[i].id, knex)) {
+      await knex("patterns").insert({
+        className: classes[i].id,
+        singleton: "true",
+      });
+    }
   }
-
 }
 
 export async function checkSingletonByName(
   className: string,
   conn: Knex
 ): Promise<boolean> {
-  let classMembers: Member[] = [];
-  let classMethods: Method[] = [];
+  let classMembers: Member[] = await getAllWhere(conn, "members", {
+    class: className,
+  });
+  let classMethods: Method[] = await getAllWhere(conn, "methods", {
+    class: className,
+  });
   let allOtherMembers: Member[] = [];
-
-  await conn
-    .from("members")
-    .select("*")
-    .where({ class: className })
-    .then((rows) => {
-      rows.forEach((row) => {
-        classMembers.push(row);
-      });
-    });
-
-  await conn
-    .from("methods")
-    .select("*")
-    .where({ class: className })
-    .then((rows) => {
-      rows.forEach((row) => {
-        classMethods.push(row);
-      });
-    });
 
   await conn
     .from("members")
@@ -141,8 +106,3 @@ export async function checkSingletonByName(
   return true;
 }
 
-export async function getAllDesignPatterns(
-  conn: Knex
-): Promise<DesignPattern[]> {
-  return getAll(conn, "patterns");
-}

@@ -1,4 +1,4 @@
-import { getDesignPatternArray } from "./index";
+import { getDesignPatternArray } from "./util";
 
 export type Relation = {
   id: number;
@@ -40,7 +40,7 @@ export type DesignPattern = {
   singleton: string;
 }
 
-export default class ClassDiagram {
+export class ClassDiagram {
   classes: _Class[];
   relations: Relation[];
   debug: any[];

@@ -1,4 +1,4 @@
-import {getDesignPatternArray,getAccessibility,getClassifierMember,getClassifierMethod,getMemberName,getMemberReturnType,getMethodName,getMethodReturnType} from "./index";
+import {getDesignPatternArray,getAccessibility,getClassifierMember,getClassifierMethod,getMemberName,getMemberReturnType,getMethodName,getMethodReturnType} from "./util";
 
 const debug = [
     {

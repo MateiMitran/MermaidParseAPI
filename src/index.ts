@@ -1,19 +1,21 @@
 import * as mermaid from "mermaid";
 
 import knex from "knex";
-import ClassDiagram, {
+import {
+  ClassDiagram,
   DesignPattern,
+  getAllClasses,
+  getAllDesignPatterns,
+  getAllRelations,
+  initDatabase,
   Relation,
   _Class,
-} from "./charts/classDiagram/ClassDiagram";
-
-import { getAllClasses, getAllRelations, initDatabase } from "./charts/classDiagram/database";
-
-import { getAllDesignPatterns } from "./charts/classDiagram/designPatterns/singleton";
+} from "./charts/classDiagram/index";
 
 const input =
-  "classDiagram\r\n    Animal <|-- Duck\r\n    Animal <|-- Fish\r\n    Animal <|-- Zebra\r\n    Singleton --> Singleton\r\n    Animal : +int age\r\n    Animal : +String gender\r\n    Animal: +isMammal()\r\n    Animal: +mate()\r\n    class Duck{\r\n        +String beakColor\r\n        +swim()\r\n        +quack()\r\n    }\r\n    class Fish{\r\n        -int sizeInFeet\r\n        -canEat()\r\n    }\r\n    class Zebra{\r\n        +bool is_wild\r\n        +run()\r\n    }\r\n    class Singleton{\r\n        -Singleton singleton$\r\n        -Singleton()\r\n        +getInstance()$ Singleton\r\n   }";
+  "classDiagram\r\n  Singleton-->Singleton\r\n SecondSingleton-->SecondSingleton\r\n   Animal <|-- Duck\r\n    Animal <|-- Fish\r\n    Animal <|-- Zebra\r\n  Animal : +int age\r\n    Animal : +String gender\r\n    Animal: +isMammal()\r\n    Animal: +mate()\r\n    class Duck{\r\n        +String beakColor\r\n        +swim()\r\n        +quack()\r\n    }\r\n    class Fish{\r\n        -int sizeInFeet\r\n        -canEat()\r\n    }\r\n    class Zebra{\r\n        +bool is_wild\r\n        +run()\r\n    }\r\n    class Singleton{\r\n        -Singleton singleton$\r\n        -Singleton()\r\n        +getInstance()$ Singleton\r\n   }\r\n    class SecondSingleton{\r\n        -SecondSingleton singleton$\r\n        -SecondSingleton()\r\n        +getInstance()$ SecondSingleton\r\n   }";
 
+//ParseidonJS
 export async function MermaidInterpeter(
   input: string
 ): Promise<{
@@ -44,9 +46,9 @@ export async function MermaidInterpeter(
     if (classDiagram.getRelations().length > 0) {
       await initDatabase(conn, classDiagram);
       let classes: _Class[] = await getAllClasses(conn);
-      let relations: Relation[] =  await getAllRelations(conn);
-      let dPatterns: DesignPattern[] =  await getAllDesignPatterns(conn);
-    
+      let relations: Relation[] = await getAllRelations(conn);
+      let dPatterns: DesignPattern[] = await getAllDesignPatterns(conn);
+
       return {
         classes: classes,
         relations: relations,

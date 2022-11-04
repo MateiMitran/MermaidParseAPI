@@ -1,6 +1,6 @@
 import { Knex } from "knex";
 
-import ClassDiagram, { DesignPattern, Relation, _Class } from "./ClassDiagram";
+import { ClassDiagram, Relation, _Class } from "./ClassDiagram";
 import {
   getAccessibility,
   getClassifierMember,
@@ -9,15 +9,17 @@ import {
   getMemberReturnType,
   getMethodName,
   getMethodReturnType,
-} from "./index";
+} from "./util";
 
-import { initSingletonTable } from "./designPatterns/singleton";
+import { createDesignPatternTable } from "./designPatterns";
+import { insertSingletons } from "./designPatterns/singleton";
 
 export async function initDatabase(conn: Knex, classDiagram: ClassDiagram) {
   await createMethodsTable(conn);
   await createMembersTable(conn);
   await createClassesTable(conn);
   await createRelationsTable(conn);
+  await createDesignPatternTable(conn);
 
   await insertMembersAndMethods(conn, classDiagram);
 
@@ -27,41 +29,25 @@ export async function initDatabase(conn: Knex, classDiagram: ClassDiagram) {
   //insert relations
   await insertArray(conn, "relations", classDiagram.getRelations());
 
-  await initSingletonTable(conn, classDiagram);
+  await insertSingletons(conn, classDiagram);
 }
 
 export async function getAllRelations(conn: Knex): Promise<Relation[]> {
   return getAll(conn, "relations");
 }
 
-export async function getAllClasses(conn:Knex): Promise<_Class[]> {
-  return getAll(conn,"classes");
+export async function getAllClasses(conn: Knex): Promise<_Class[]> {
+  return getAll(conn, "classes");
 }
 
 export async function getAllWithRelation(
   relationName: string,
   conn
 ): Promise<Relation[]> {
-  let relationsArray: Relation[] = [];
-
-  await conn
-    .from("relations")
-    .select("*")
-    .where({ relation: relationName })
-    .then((rows) =>
-      rows.forEach((row) => {
-        relationsArray.push(row);
-      })
-    )
-    .catch((e) => {
-      console.log(e);
-      throw e;
-    });
-
-  return relationsArray;
+  return getAllWhere(conn, "relations", { relationName: relationName });
 }
 
-export async function getAll(conn, tableName: String): Promise<any[]> {
+export async function getAll(conn: Knex, tableName: string): Promise<any[]> {
   return conn
     .from(tableName)
     .select("*")
@@ -74,62 +60,74 @@ export async function getAll(conn, tableName: String): Promise<any[]> {
     });
 }
 
-export async function createMethodsTable(knex: Knex): Promise<Knex.SchemaBuilder> {
-  return knex.schema.createTable("methods", (table) => {
+export async function getAllWhere(
+  conn: Knex,
+  tableName: string,
+  condition: any
+): Promise<any[]> {
+  return conn
+    .from(tableName)
+    .select("*")
+    .where(condition)
+    .then((rows) => {
+      return rows;
+    })
+    .catch((e) => {
+      console.log(e);
+      throw e;
+    });
+}
+
+export async function createMethodsTable(knex: Knex) {
+  await knex.schema.createTable("methods", (table) => {
     table.increments("id").primary();
     table.string("returnType");
     table.string("name");
     table.string("accessibility");
     table.string("classifier");
     table.string("class");
-  }).then(() => console.log(`methods created`))
-  .catch((e) => {
-    console.log(e);
-    throw e;
-  });;
+  });
+
+  return knex("methods");
 }
 
-export async function createMembersTable(knex: Knex): Promise<Knex.SchemaBuilder> {
-  return knex.schema.createTable("members", (table) => {
+export async function createMembersTable(knex: Knex) {
+  await knex.schema.createTable("members", (table) => {
     table.increments("id").primary();
     table.string("type");
     table.string("name");
     table.string("accessibility");
     table.string("classifier");
     table.string("class");
-  }).then(() => console.log(`members created`))
-  .catch((e) => {
-    console.log(e);
-    throw e;
-  });;
+  });
+
+  return knex("members");
 }
 
-export async function createClassesTable(knex: Knex): Promise<Knex.SchemaBuilder> {
+export async function createClassesTable(knex: Knex) {
   await knex.schema.createTable("classes", (table) => {
     table.string("id").primary();
     table.string("type");
     table.string("members");
     table.string("methods");
-  })
+  });
 
   return knex("classes");
 }
 
-export async function createRelationsTable(knex: Knex): Promise<Knex.SchemaBuilder> {
-  return knex.schema.createTable("relations", (table) => {
+export async function createRelationsTable(knex: Knex) {
+  await knex.schema.createTable("relations", (table) => {
     table.increments("id").primary();
     table.string("first_class");
     table.string("relation");
     table.string("second_class");
-  }).then(() => console.log(`relations created`))
-  .catch((e) => {
-    console.log(e);
-    throw e;
-  });;
+  });
+
+  return knex("relations");
 }
 
-export async function insertArray(conn: Knex, tableName: string, array: any[]): Promise<void> {
-  return await conn(tableName)
+export async function insertArray(conn: Knex, tableName: string, array: any[]) {
+  return conn(tableName)
     .insert(array)
     .then(() => console.log(`${tableName} inserted`))
     .catch((e) => {
@@ -141,7 +139,7 @@ export async function insertArray(conn: Knex, tableName: string, array: any[]): 
 export async function insertMembersAndMethods(
   conn: Knex,
   classDiagram: ClassDiagram
-): Promise<void> {
+) {
   //insert methods and members
   classDiagram.getClasses().forEach((_class) => {
     _class.members.forEach(async (member) => {
@@ -155,7 +153,7 @@ export async function insertMembersAndMethods(
     });
 
     _class.methods.forEach(async (method) => {
-     await conn("methods").insert({
+      await conn("methods").insert({
         returnType:
           getMethodReturnType(method) !== ""
             ? getMethodReturnType(method)
